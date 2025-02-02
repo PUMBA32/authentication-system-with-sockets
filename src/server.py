@@ -1,91 +1,119 @@
-import socket 
-import os
-import sys
-
-from database import Database
-from typing import List
+import socket
+import sqlite3 as sq
 
 
 class Server:
-    def __init__(self, host: str = socket.gethostname(), port: str = 12345) -> None: 
+    def __init__(self, host: str = socket.gethostname(), port: int = 12345) -> None:
+        self._host: str = host
         self._port: int = port
-        self._host: int = host
-        
-        self.db: Database = Database()
 
-    
-    def __cls(self) -> None:
-        os.system("cls" if sys.platform == 'win32' else 'clear')
+        self._PATH_TO_DB: str = "D:\\Coding\\PYTHON\\webdev\\projects\\auth\\base.db"
+
+        try:
+            with sq.connect(self._PATH_TO_DB) as self.con:
+                self.cur = self.con.cursor()
+
+                self.cur.execute("""CREATE TABLE IF NOT EXISTS users(
+                        user_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        name TEXT,
+                        password TEXT                 
+                    )""")
+            print("[+] created connection with db")
+        except sq.Error as e:
+            print(f"[error] connection with db: {e}")
 
 
-    def run(self) -> None:
+    def run(self) -> None: 
         server = socket.socket(socket.AF_INET, socket.SOCK_STREAM, proto=0)
         try:
-            server.bind((self._host, self._port))  # Привязка сервера к определенному адресу
-            server.listen()  # Прослушивание входящих подключений
-
-            while 1:
-                conn, _ = server.accept()  # Принятие подключений клиента 
-
+            server.bind((self._host, self._port))
+            server.listen()
+            print("[i] listening...")
+            while True:
+                conn, add = server.accept()
+                print(f"\n[+] new client-socket: {add}")
                 try:
-                    self.serve_client(conn)  # Обработка сообщений от клиента
+                    self.serve_client(conn)
                 except Exception as e:
-                    self.__cls()
-                    print(f"[!] Client serving failed: {e}")
+                    print('[error] Client serving failed.\n', e)
+                    conn.send("FAILED".encode())
         finally:
-            server.close()  # Прекращение работы сервера (закрытие серверного сокета)
-
-
-    def serve_client(self, conn: socket.socket) -> None: 
-        try:
-            req: List[str] = self.parse_request(conn)  # Разбиение запроса на список ключевых элементов
-            resp = self.handle_request(req)  # Обработка запроса
-            self.send_response(conn, resp)  # Отправка ответа от сервера
-        except Exception as e:
-            self.send_error(conn, e)  # Отправка ошибки в случае неполадок
-        else:
-            conn.close()  # Закрытие соединения с клиентом
+            server.close()
+            self.con.close()
 
     
-    def parse_request(self, conn: socket.socket) -> List[str]: 
-        data: str = conn.recv(1024).decode()  # Данные от клиента в объеме 1024 байт
-        split_data: List[str] = data.split("\n")
+    def serve_client(self, conn: socket.socket) -> None:
+        req: list[str] = self.parse_request(conn)
+        resp: str = self.handle_request(req)
 
-        if len(split_data) != 3:
-            raise Exception("[!!] Request content error")
+        print(f"[i] - req: {req}\n    - resp: {resp}")
+
+        if resp == "END":
+            conn.close()
+            print("[-] connection closed\n")
+            return
         
-        return split_data
-
-
-    def handle_request(self, request: List[str]) -> str:
-        req_type: str = request[0]  # Тип запроса
-        name: str = request[1]  # Имя пользователя
-        pas: str = request[2]  # Пароль от аккаунта пользователя
-
-        if req_type == 'ADD':  # Добавление пользователя в базу 
-            self.db.add_user(name, pas)
-        elif req_type == 'IS_THERE':  # Проверка на наличия аккаунта в базе  
-            return "DONE" if self.db.is_there_account(name, pas) else "FAILED"
-        elif req_type == 'SEARCH_USER':  # Проверка на наличие пользователя в базе
-            return "DONE" if self.db.search_user(name) else "FAILED"
-        else:
-            return "REQUEST TYPE FAILED"        
-
+        self.send_response(conn, resp)
+        print("[i] response successfully sent")
         
-    def send_response(self, conn: socket.socket, response: str) -> None:
+
+    def parse_request(self, conn: socket.socket) -> list[str]:
+        try: 
+            buff = conn.recv(1024)
+            request: str = buff.decode()
+            return request.split('\n')
+        except Exception as e:
+            raise Exception(f"Parsing request error: {e}")
+            
+    
+    def handle_request(self, req: list[str]) -> str:
+        req_title: str = req[0]
+
+        match req_title:
+            case "CHECK_NAME": return self.check_name(req[1])
+            case "ADD_USER": return self.add_user(req[1], req[2])
+            case "CHECK_ACCOUNT": return self.check_account(req[1], req[2])
+            case "END": return "END" 
+            case _: return "FAILED"
+
+
+    def check_name(self, name: str) -> str: 
         try:
-            conn.send(response.encode())  # Отправка ответа клиенту
-        except Exception:
-            raise Exception("[!!] Sending response failed")
+            self.cur.execute("SELECT * FROM users WHERE name = ?", (name,))
+            result = self.cur.fetchone()
+
+            return "SUCCESSFUL" if result else "NO_USER"
+        except sq.Error as e:
+            raise Exception(f"Database. Checking name error: {e}")
+
+
+    def add_user(self, name, pas) -> str: 
+        try:
+            self.cur.execute("INSERT INTO users (name, password) VALUES (?, ?)", (name, pas))
+            self.con.commit()
+
+            return "SUCCESSFUL"
+        except sq.Error as e:
+            raise Exception(f"Database. adding user error: {e}")
+    
+
+    def check_account(self, name, pas) -> str: 
+        try:
+            self.cur.execute("SELECT * FROM users WHERE name = ?, password = ?", (name, pas))
+            result = self.cur.fetchone()
+
+            return "SUCCESSFUL" if result else "BAD_PASSWORD"
+        except sq.Error as e:
+            raise Exception(f"Database. Checking account error: {e}")
 
     
-    def send_error(self, conn: socket.socket, e: Exception) -> None:
+    def send_response(self, conn: socket.socket, resp: str):
         try:
-            conn.send(e.encode())  # Отправка ошибки клиенту
+            conn.send(resp.encode())
         except Exception as e:
-            raise Exception("[!!] Sending error failed")
+            raise Exception(f"Sending response error: {e}")
 
 
 if __name__ == '__main__':
-    server = Server()
+    server: Server = Server()
     server.run()
