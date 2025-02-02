@@ -82,9 +82,10 @@ class Login(Auth):
             self._cls()
             print("Server error.\n")
             return
-        
+
         check_account_result: str = self.__check_account(name, pas)
 
+        self._cls()
         match check_account_result:
             case "FAILED": print("Server error.\n")  # Появилась ошибка на сервере
             case "BAD_PASSWORD": print("Wrong password. Try again.\n")  # Пароль введен неправильно
@@ -95,7 +96,7 @@ class Login(Auth):
     def __check_account(self, name: str, pas: str) -> str: 
         request = f"CHECK_ACCOUNT\n{name}\n{pas}"  # формирование запроса
         err = "Login.__check_account()"
-        
+
         return self.send_request(request, err)
 
 
@@ -117,6 +118,7 @@ class Registration(Auth):
         
         add_result: str = self.__add_user(name, pas)
 
+        self._cls()
         match add_result:
             case "FAILED": print("Server error.\n")  # Появилась ошибка на сервере
             case "SUCCESSFUL": print("Account was created!\n")  # Аккаунт успешно создан 

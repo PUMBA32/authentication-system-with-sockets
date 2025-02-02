@@ -27,19 +27,21 @@ class Server:
         server = socket.socket(socket.AF_INET, socket.SOCK_STREAM, proto=0)
         try:
             server.bind((self._host, self._port))
-            server.listen()
+            server.listen(5)
             print("[i] listening...")
-            while True:
+            while 1:
                 conn, add = server.accept()
                 print(f"\n[+] new client-socket: {add}")
-                try:
-                    self.serve_client(conn)
-                except Exception as e:
-                    print('[error] Client serving failed.\n', e)
-                    conn.send("FAILED".encode())
+                while 1:
+                    try:
+                        res: str = self.serve_client(conn)
+                        if res == "END": 
+                            conn.close()
+                            break
+                    except Exception as e:
+                        print('[error] Client serving failed.\n', e)
         finally:
             server.close()
-            self.con.close()
 
     
     def serve_client(self, conn: socket.socket) -> None:
@@ -49,9 +51,8 @@ class Server:
         print(f"[i] - req: {req}\n    - resp: {resp}")
 
         if resp == "END":
-            conn.close()
             print("[-] connection closed\n")
-            return
+            return resp
         
         self.send_response(conn, resp)
         print("[i] response successfully sent")
@@ -99,7 +100,7 @@ class Server:
 
     def check_account(self, name, pas) -> str: 
         try:
-            self.cur.execute("SELECT * FROM users WHERE name = ?, password = ?", (name, pas))
+            self.cur.execute("SELECT * FROM users WHERE name = ? AND password = ?", (name, pas))
             result = self.cur.fetchone()
 
             return "SUCCESSFUL" if result else "BAD_PASSWORD"
