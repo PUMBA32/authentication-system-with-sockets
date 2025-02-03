@@ -15,4 +15,11 @@ This program is divided into two parts: Client and Server.
 
 
 ## How server works
-...
+
+1. <b>Server initialization</b>. When creating a server class specimen, a connection is installed with the SQLite database.
+
+2. <b>Starting server</b>. The server accepts incoming compounds and creates a separate socket for each new client.
+
+3. <b>Processing of client's requests</b>. The Serve_client method processes the client's requests. He reads the data from the socket, divides it into lines and transmits it to the Handle_request method for processing. The Handle_request method analyzes the first line of the request and causes the corresponding method depending on the type of request.
+
+4. <b>Sending data to the client</b>.    
