@@ -22,4 +22,17 @@ This program is divided into two parts: Client and Server.
 
 3. <b>Processing of client's requests</b>. The Serve_client method processes the client's requests. He reads the data from the socket, divides it into lines and transmits it to the Handle_request method for processing. The Handle_request method analyzes the first line of the request and causes the corresponding method depending on the type of request.
 
-4. <b>Sending data to the client</b>.    
+4. <b>Sending data to the client</b>.
+
+
+## How to start
+
+Starting client.py 
+```
+python path_before/client.py
+```
+
+Starting server.py
+```
+python path_berfore/server.py
+```
