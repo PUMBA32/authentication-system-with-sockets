@@ -7,7 +7,7 @@ class Server:
         self._host: str = host
         self._port: int = port
 
-        self._PATH_TO_DB: str = "D:\\Coding\\PYTHON\\webdev\\projects\\auth\\base.db"
+        self._PATH_TO_DB: str = "D:\\Coding\\PYTHON\\webdev\\projects\\auth\\base.db"  # Here should be your path berfore base.db
 
         try:
             with sq.connect(self._PATH_TO_DB) as self.con:
